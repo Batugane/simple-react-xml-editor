@@ -1,4 +1,4 @@
-import { Editor } from "@monaco-editor/react";
+import { Editor, useMonaco } from "@monaco-editor/react";
 import React, { useState, useRef, useEffect } from "react";
 
 type CustomEditorProps = {
@@ -10,17 +10,22 @@ const CustomEditor = (props: CustomEditorProps) => {
   const [editorContent, setEditorContent] = useState("");
   const [editorHeight, setEditorHeight] = useState("60vh");
   const [editorWidth, setEditorWidth] = useState("100%");
+
   const [fontSize, setFontSize] = useState(14);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const editorRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const monaco = useMonaco();
+  const [selectedColor, setSelectedColor] = useState("#ffffff");
+
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth < 768) {
-        setEditorHeight("50vh"); // Adjust for smaller screens
+        setEditorHeight("50vh");
       } else {
-        setEditorHeight("60vh"); // Default size for larger screens
+        setEditorHeight("60vh");
       }
     };
 
@@ -36,7 +41,7 @@ const CustomEditor = (props: CustomEditorProps) => {
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type === "text/xml") {
+    if (file && (file.type === "text/xml" || file.name.endsWith(".sld"))) {
       const reader = new FileReader();
       reader.onload = (e) => {
         const fileContent = e.target?.result as string;
@@ -47,7 +52,7 @@ const CustomEditor = (props: CustomEditorProps) => {
       };
       reader.readAsText(file);
     } else {
-      alert("Please upload a valid XML file.");
+      alert("Please upload a valid Style file.");
     }
   };
 
@@ -125,6 +130,7 @@ const CustomEditor = (props: CustomEditorProps) => {
     cursor: "pointer",
     transition: "background-color 0.3s",
   };
+
   const handleButtonMouseOver = (
     event: React.MouseEvent<HTMLButtonElement, MouseEvent>
   ) => {
@@ -135,6 +141,27 @@ const CustomEditor = (props: CustomEditorProps) => {
     event: React.MouseEvent<HTMLButtonElement, MouseEvent>
   ) => {
     event.currentTarget.style.backgroundColor = "#555";
+  };
+
+  const handleInsertColor = () => {
+    if (editorRef.current && monaco) {
+      const editorInstance = editorRef.current;
+      const selection = editorInstance.getSelection();
+      const range = selection
+        ? new monaco.Range(
+            selection.startLineNumber,
+            selection.startColumn,
+            selection.endLineNumber,
+            selection.endColumn
+          )
+        : new monaco.Range(1, 1, 1, 1);
+
+      editorInstance.executeEdits("", [
+        { range: range, text: selectedColor, forceMoveMarkers: true },
+      ]);
+
+      editorInstance.focus();
+    }
   };
 
   return (
@@ -160,7 +187,7 @@ const CustomEditor = (props: CustomEditorProps) => {
           value={fontSize}
           style={{ ...buttonStyle, cursor: "pointer" }}
         >
-          {" "}
+          <option value="8">8px</option>
           <option value="10">10px</option>
           <option value="12">12px</option>
           <option value="14">14px</option>
@@ -168,6 +195,15 @@ const CustomEditor = (props: CustomEditorProps) => {
           <option value="18">18px</option>
           <option value="20">20px</option>
         </select>
+        <button onClick={handleInsertColor} style={buttonStyle}>
+          Insert Color
+        </button>
+        <input
+          type="color"
+          value={selectedColor}
+          onChange={(e) => setSelectedColor(e.target.value)}
+          style={{ ...buttonStyle, cursor: "pointer" }}
+        />
         <button
           onClick={handleUploadClick}
           style={buttonStyle}
@@ -190,7 +226,7 @@ const CustomEditor = (props: CustomEditorProps) => {
         ref={fileInputRef}
         onChange={handleFileUpload}
         style={{ display: "none" }}
-        accept=".xml"
+        accept=".xml , .sld"
       />
       <Editor
         height={editorHeight}
